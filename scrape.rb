@@ -9,14 +9,13 @@ def scrape()
     # Initiate the crawl
     browser = Watir::Browser.new :chrome 
 
-    #(70000000..71500000).each do |biznum|
-    (70028321..70028321).each do |biznum|
+    (70000000..71500000).each do |biznum|
 
         begin
-            # Load search form
+            # Load ARBK business registration search page
             browser.goto 'arbk.rks-gov.net'
 
-            # Search for business number
+            # Search for a business based on registration number
             browser.text_field(id: 'MainContent_ctl00_txtNumriBiznesit').set biznum
             browser.button(id: 'MainContent_ctl00_Submit1').click
 
@@ -94,27 +93,28 @@ def scrape()
                 biz_hash['formatted']['status'] = biz_status
                 biz_hash['formatted']['arbkUrl'] = biz_arbk_url
 
-                # TODO: persist business info JSON in database
-                puts biz_hash
+                save_business_data(biz_hash)
             end
         rescue => error
-            # TODO: log error
             puts 'An error has occured.'
             puts error
+            save_error(biznum)
         end
     end
 
     browser.quit
 end
 
-def save_error(registrationNum)
+def save_error(registration_num)
     # Save the registration number that triggered the error.
-    'hello'
+    'TODO: Save the registration number that triggered the error.'
 end
 
 def save_business_data(biz_hash)
     # Save the business data in database.
-    'hello'
+    'TODO: Save the business data in database.'
+
+    puts biz_hash
 end
 
 def fetch_row_data(rows, biz_hash, parent_key)
