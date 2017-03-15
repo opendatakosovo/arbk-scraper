@@ -3,7 +3,13 @@ require 'watir'
 require 'cgi'
 require 'time'
 require 'date'
+require 'mongo'
 
+Mongo::Logger.logger.level = ::Logger::FATAL
+
+client = Mongo::Client.new([ '127.0.0.1:27017' ], :database => 'arbk')
+$collection_businesses = client[:businesses]
+$collection_errors = client[:errors]
 
 def scrape()
     # Initiate the crawl
@@ -12,6 +18,7 @@ def scrape()
     (70000000..71500000).each do |biznum|
 
         begin
+
             # Load ARBK business registration search page
             browser.goto 'arbk.rks-gov.net'
 
@@ -96,25 +103,25 @@ def scrape()
                 save_business_data(biz_hash)
             end
         rescue => error
-            puts 'An error has occured.'
-            puts error
-            save_error(biznum)
+            puts error.to_s
+            save_error(biznum, error.to_s)
         end
     end
 
     browser.quit
 end
 
-def save_error(registration_num)
+def save_error(registration_num, error_msg)
     # Save the registration number that triggered the error.
-    'TODO: Save the registration number that triggered the error.'
+    $collection_errors.insert_one({
+        'registrationNum' => intify(registration_num),
+        'errorMsg' => error_msg
+        })
 end
 
 def save_business_data(biz_hash)
     # Save the business data in database.
-    'TODO: Save the business data in database.'
-
-    puts biz_hash
+    $collection_businesses.insert_one(biz_hash)
 end
 
 def fetch_row_data(rows, biz_hash, parent_key)
