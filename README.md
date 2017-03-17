@@ -10,6 +10,6 @@ A Watir ruby script to scrape business registration data from ARBK's website.
 
 ## Ruby Dependencies
 - [rubygems](https://rubygems.org/).
-- [mongo-ruby-driver](https://github.com/mongodb/mongo-ruby-driver): a mongo driver ruby gem.
-- [watir](http://watir.github.io/): a ruby gem to programme interactions with the Chrome browser.
+- [mongo-ruby-driver](https://github.com/mongodb/mongo-ruby-driver): a mongo driver.
+- [watir](http://watir.github.io/): interface to script interactions with the Chrome browser.
 - [nokogiri](https://github.com/sparklemotion/nokogiri): an HTML, XML, SAX, and Reader parser. Among Nokogiri's many features is the ability to search documents via XPath or CSS3 selectors.
