@@ -23,8 +23,13 @@ def scrape()
     (70000000..71500000).each do |biznum|
 
         begin
+            
             # Search for a business based on registration number
-            browser.text_field(id: 'MainContent_ctl00_txtNumriBiznesit').set biznum
+            browser.text_field(id: 'MainContent_ctl00_txtNumriBiznesit').set ''
+            while browser.text_field(id: 'MainContent_ctl00_txtNumriBiznesit').value.length != '70000000'.length
+                browser.text_field(id: 'MainContent_ctl00_txtNumriBiznesit').set biznum
+            end
+
             browser.button(id: 'MainContent_ctl00_Submit1').click
 
             # If there is a result, there will be result table with a single row and a link
