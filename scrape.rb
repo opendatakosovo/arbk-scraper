@@ -4,6 +4,7 @@ require 'cgi'
 require 'time'
 require 'date'
 require 'mongo'
+require 'nokogiri'
 
 Mongo::Logger.logger.level = ::Logger::FATAL
 
@@ -13,15 +14,15 @@ $collection_errors = client[:errors]
 
 def scrape()
     # Initiate the crawl
-    browser = Watir::Browser.new :chrome 
+    browser = Watir::Browser.new :chrome
 
+    # Load ARBK business registration search page
+    browser.goto 'arbk.rks-gov.net'
+
+    # Start searching for businesses
     (70000000..71500000).each do |biznum|
 
         begin
-
-            # Load ARBK business registration search page
-            browser.goto 'arbk.rks-gov.net'
-
             # Search for a business based on registration number
             browser.text_field(id: 'MainContent_ctl00_txtNumriBiznesit').set biznum
             browser.button(id: 'MainContent_ctl00_Submit1').click
@@ -31,6 +32,7 @@ def scrape()
 
             # If the lin does exist, the load the business page
             if anchor.exists?
+
                 # Prepare the business data container (hashmap)
                 biz_hash = {
                     'raw' => {
@@ -71,22 +73,22 @@ def scrape()
                         })
 
                         rows = table_section_span.parent.parent.parent.parent.parent.parent.tbody.trs
-                        fetch_row_data(rows, biz_hash, 'info')
+                        fetch_row_data(biznum, rows, biz_hash, 'info')
 
                     elsif section_title == 'Personat e Autorizuar'
                         # Authorized persons.
                         rows = table_section_span.parent.parent.parent.parent.tbody.trs
-                        fetch_row_data(rows, biz_hash, 'authorized')
+                        fetch_row_data(biznum, rows, biz_hash, 'authorized')
 
                     elsif section_title == 'Pronarë'
                         # Owners
                         rows = table_section_span.parent.parent.parent.parent.tbody.trs
-                        fetch_row_data(rows, biz_hash, 'owners')
+                        fetch_row_data(biznum, rows, biz_hash, 'owners')
 
                     elsif section_title == 'Aktivitet/et'
                         # Activities
                         rows = table_section_span.parent.parent.parent.parent.tbody.trs
-                        fetch_row_data(rows, biz_hash, 'activities')
+                        fetch_row_data(biznum, rows, biz_hash, 'activities')
 
                     else
                         # do nothing
@@ -101,10 +103,18 @@ def scrape()
                 biz_hash['formatted']['arbkUrl'] = biz_arbk_url
 
                 save_business_data(biz_hash)
+
+                # Return to the search page for the next search.
+                browser.goto 'arbk.rks-gov.net'
             end
         rescue => error
+
+            # Display and save error
             puts error.to_s
             save_error(biznum, error.to_s)
+
+            # Return to the search page to continue with the next search after an error.
+            browser.goto 'arbk.rks-gov.net'
         end
     end
 
@@ -124,16 +134,35 @@ def save_business_data(biz_hash)
     $collection_businesses.insert_one(biz_hash)
 end
 
-def fetch_row_data(rows, biz_hash, parent_key)
+def fetch_row_data(biznum, rows, biz_hash, parent_key)
     # Fetch data from HTML table row
     rows.each do |row|
-        if row.tds()[0].exists? and row.tds()[1].exists?
+
+        # Parsing HTML with Nokogiri enable much more efficient access to data than navigating through Watir elements.
+        noko_row = Nokogiri::HTML(row.html)
+
+        # In the 'info' table we have (key, val) = (<b/>, <span/>).
+        # In the other tables we have (key, val) = (<span/>), <span/>).
+        # Because of this inconsistency, we need to carefully apply xpath and index values.
+        key_elem = noko_row.xpath(parent_key == 'info' ? './/b' : './/span')[0]
+        val_elem = noko_row.xpath('.//span')[parent_key == 'info' ? 0 : 1]
+
+        if key_elem != nil and val_elem != nil
+
+            key = key_elem.text.strip.gsub(/\s+/, ' ')
+            val = val_elem.text.strip.gsub(/\s+/, ' ')
+
             biz_hash['raw'][parent_key].push({
-                'key' => row.tds()[0].text.strip,
-                'value' => row.tds()[1].text.strip
+                'key' => key,
+                'value' => val,
             })
 
-            format_data(biz_hash['formatted'], parent_key, row.tds()[0].text.strip, row.tds()[1].text.strip)
+            format_data(biz_hash['formatted'], parent_key, key, val)
+
+        else
+            error_msg = 'Failed to fetch row data in ' + parent_key + ' section.'
+            save_error(biznum, error_msg)
+
         end
     end
 end
