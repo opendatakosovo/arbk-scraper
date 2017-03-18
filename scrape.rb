@@ -24,8 +24,7 @@ client = Mongo::Client.new([ '127.0.0.1:27017' ], :database => 'arbk')
 $collection_businesses = client[:businesses]
 $collection_errors = client[:errors]
 
-# Start scraping
-scrape()
+
 
 def get_registration_num_of_last_scraped_business
     # Get the registrationa number of the last scraped business.
@@ -288,3 +287,6 @@ def intify(value)
         value
     end
 end
+
+# Start scraping
+scrape()
