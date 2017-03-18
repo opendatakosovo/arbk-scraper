@@ -23,8 +23,9 @@ def scrape()
     (70000000..71500000).each do |biznum|
 
         begin
-            
+
             # Search for a business based on registration number
+            # Sometimes the set doesn't set the whole value so we make sure we try again if that happens.
             browser.text_field(id: 'MainContent_ctl00_txtNumriBiznesit').set ''
             while browser.text_field(id: 'MainContent_ctl00_txtNumriBiznesit').value.length != '70000000'.length
                 browser.text_field(id: 'MainContent_ctl00_txtNumriBiznesit').set biznum
@@ -68,7 +69,7 @@ def scrape()
                 table_section_spans = browser.spans(:xpath => "//div[@id='MainContent_ctl00_pnlBizneset']//table[@class='views-table cols-4']//thead//span")
 
                 table_section_spans.each do |table_section_span|
-                    section_title = table_section_span.inner_html
+                    section_title = table_section_span.text.strip
 
                     if CGI.unescapeHTML(section_title) == biz_name
                         # Business info
