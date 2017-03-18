@@ -35,7 +35,7 @@ def get_registration_num_of_last_scraped_business
                 'formatted.registrationNum' => -1
             }).limit(1).first()
 
-    latest_registration_num = doc == nil ? $registration_num_start : doc['formatted']['registrationNum']
+    latest_registration_num = doc == nil ? $registration_num_start : doc['formatted']['registrationNum'] + 1
 
     latest_registration_num
 
