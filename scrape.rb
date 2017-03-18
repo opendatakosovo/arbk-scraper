@@ -25,12 +25,14 @@ $collection_businesses = client[:businesses]
 $collection_errors = client[:errors]
 
 
-
 def get_registration_num_of_last_scraped_business
     # Get the registrationa number of the last scraped business.
     # So that we can start off around where we left off if we previously stopped the scraping script.
     doc = $collection_businesses.find({
-                'formatted.registrationNum' => {'$exists' => true}
+                'formatted.registrationNum' => {
+                    '$exists' => true,
+                    '$gte' => $registration_num_start,
+                    '$lte' => $registration_num_end},
             }).sort({
                 'formatted.registrationNum' => -1
             }).limit(1).first()
