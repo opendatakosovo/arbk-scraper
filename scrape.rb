@@ -6,13 +6,35 @@ require 'date'
 require 'mongo'
 require 'nokogiri'
 
+$registration_num_start = 70000000
+$registration_num_end = 71500000
+
 Mongo::Logger.logger.level = ::Logger::FATAL
 
 client = Mongo::Client.new([ '127.0.0.1:27017' ], :database => 'arbk')
 $collection_businesses = client[:businesses]
 $collection_errors = client[:errors]
 
+def get_registration_num_of_last_scraped_business
+    # Get the registrationa number of the last scraped business.
+    # So that we can start off around where we left off if we previously stopped the scraping script.
+    doc = $collection_businesses.find({
+                'formatted.registrationNum' => {'$exists' => true}
+            }).sort({
+                'formatted.registrationNum' => -1
+            }).limit(1).first()
+
+    latest_registration_num = doc == nil ? $registration_num_start : doc['formatted']['registrationNum']
+
+    latest_registration_num
+
+end
+
 def scrape()
+    # Get registration num start, i.e. where the scraping will begin.
+    reg_num_start = get_registration_num_of_last_scraped_business
+
+
     # Initiate the crawl
     browser = Watir::Browser.new :chrome
 
@@ -20,7 +42,7 @@ def scrape()
     browser.goto 'arbk.rks-gov.net'
 
     # Start searching for businesses
-    (70000000..71500000).each do |biznum|
+    (reg_num_start..$registration_num_end).each do |biznum|
 
         begin
 
@@ -255,4 +277,4 @@ def intify(value)
     end
 end
 
-scrape()
+#scrape()
