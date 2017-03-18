@@ -19,6 +19,9 @@ rescue => error
     $registration_num_end = 71500000
 end
 
+# Initiate the browser
+$browser = Watir::Browser.new :chrome
+
 # Establish connection to database
 client = Mongo::Client.new([ '127.0.0.1:27017' ], :database => 'arbk')
 $collection_businesses = client[:businesses]
@@ -43,16 +46,56 @@ def get_registration_num_of_last_scraped_business
 
 end
 
+def load_arbk_search_page(registration_num)
+    browser_goto_has_timeout = true
+
+    while browser_goto_has_timeout
+
+        begin
+            $browser.goto 'arbk.rks-gov.net'
+            browser_goto_has_timeout = false
+
+        rescue => error 
+            browser_goto_has_timeout = true
+
+            # Display and save error
+            puts error.to_s
+            save_error(registration_num, error.to_s)
+
+            # Wait 15 seconds before trying again
+            sleep 15
+        end
+    end 
+end
+
+def load_page_via_anchor_click(registration_num, anchor)
+    click_has_timeout = true
+
+    while click_has_timeout
+
+        begin
+            anchor.click
+            click_has_timeout = false
+
+        rescue => error 
+            click_has_timeout = true
+
+            # Display and save error
+            puts error.to_s
+            save_error(registration_num, error.to_s)
+
+            # Wait 15 seconds before trying again
+            sleep 15
+        end
+    end
+end 
+
 def scrape()
     # Get registration num start, i.e. where the scraping will begin.
     reg_num_start = get_registration_num_of_last_scraped_business
 
-
-    # Initiate the crawl
-    browser = Watir::Browser.new :chrome
-
     # Load ARBK business registration search page
-    browser.goto 'arbk.rks-gov.net'
+    load_arbk_search_page(-1)
 
     # Start searching for businesses
     (reg_num_start..$registration_num_end).each do |biznum|
@@ -61,15 +104,15 @@ def scrape()
 
             # Search for a business based on registration number
             # Sometimes the set doesn't set the whole value so we make sure we try again if that happens.
-            browser.text_field(id: 'MainContent_ctl00_txtNumriBiznesit').set ''
-            while browser.text_field(id: 'MainContent_ctl00_txtNumriBiznesit').value.length != '70000000'.length
-                browser.text_field(id: 'MainContent_ctl00_txtNumriBiznesit').set biznum
+            $browser.text_field(id: 'MainContent_ctl00_txtNumriBiznesit').set ''
+            while $browser.text_field(id: 'MainContent_ctl00_txtNumriBiznesit').value.length != '70000000'.length
+                $browser.text_field(id: 'MainContent_ctl00_txtNumriBiznesit').set biznum
             end
 
-            browser.button(id: 'MainContent_ctl00_Submit1').click
+            $browser.button(id: 'MainContent_ctl00_Submit1').click
 
             # If there is a result, there will be result table with a single row and a link
-            anchor = browser.a(:xpath => "//table[@class='views-table cols-4']/tbody//td/a")
+            anchor = $browser.a(:xpath => "//table[@class='views-table cols-4']/tbody//td/a")
 
             # If the lin does exist, the load the business page
             if anchor.exists?
@@ -91,17 +134,17 @@ def scrape()
 
                 # Get some data already
                 biz_name = CGI.unescapeHTML(anchor.text.strip)
-                biz_status = browser.tds(:xpath => "//table[@class='views-table cols-4']/tbody//td")[5].text
+                biz_status = $browser.tds(:xpath => "//table[@class='views-table cols-4']/tbody//td")[5].text
                 biz_arbk_url = anchor.href
 
                 # Indicate in console that we found a business
                 puts 'Business found: ' + biz_name + ' (' + biz_status + '): ' + biz_arbk_url
 
-                # Click on the lin to load busines info page on arbk's website.
-                anchor.click
+                # Click on the link to load busines info page on arbk's website.
+                load_page_via_anchor_click(biznum, anchor)
 
                 # Navigate all the table, row by row, and extract the data all while building a json document that will be stored in the databse.
-                table_section_spans = browser.spans(:xpath => "//div[@id='MainContent_ctl00_pnlBizneset']//table[@class='views-table cols-4']//thead//span")
+                table_section_spans = $browser.spans(:xpath => "//div[@id='MainContent_ctl00_pnlBizneset']//table[@class='views-table cols-4']//thead//span")
 
                 table_section_spans.each do |table_section_span|
                     section_title = table_section_span.text.strip
@@ -146,7 +189,7 @@ def scrape()
                 save_business_data(biz_hash)
 
                 # Return to the search page for the next search.
-                browser.goto 'arbk.rks-gov.net'
+                load_arbk_search_page(biznum)
             end
         rescue => error
 
@@ -155,11 +198,11 @@ def scrape()
             save_error(biznum, error.to_s)
 
             # Return to the search page to continue with the next search after an error.
-            browser.goto 'arbk.rks-gov.net'
+            load_arbk_search_page(biznum)
         end
     end
 
-    browser.quit
+    $browser.quit
 end
 
 def save_error(registration_num, error_msg)
