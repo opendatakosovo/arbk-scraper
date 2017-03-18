@@ -6,14 +6,26 @@ require 'date'
 require 'mongo'
 require 'nokogiri'
 
-$registration_num_start = 70000000
-$registration_num_end = 71500000
-
 Mongo::Logger.logger.level = ::Logger::FATAL
 
+# Get bussiness registration number range to scrape
+begin
+    $registration_num_start = Integer(ARGV[0]) # 70000000
+    $registration_num_end = Integer(ARGV[1]) # 71500000
+
+rescue => error
+    puts 'Error inputting bussiness registration number range to scrape: using default [70000000, 71500000].'
+    $registration_num_start = 70000000
+    $registration_num_end = 71500000
+end
+
+# Establish connection to database
 client = Mongo::Client.new([ '127.0.0.1:27017' ], :database => 'arbk')
 $collection_businesses = client[:businesses]
 $collection_errors = client[:errors]
+
+# Start scraping
+scrape()
 
 def get_registration_num_of_last_scraped_business
     # Get the registrationa number of the last scraped business.
@@ -276,5 +288,3 @@ def intify(value)
         value
     end
 end
-
-scrape()
