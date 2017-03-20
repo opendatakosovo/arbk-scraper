@@ -24,8 +24,14 @@ $browser = Watir::Browser.new :chrome
 
 # Establish connection to database
 client = Mongo::Client.new([ '127.0.0.1:27017' ], :database => 'arbk')
+#$collection_businesses = client[:businesses]
+#$collection_errors = client[:errors]
 $collection_businesses = client[:businesses]
 $collection_errors = client[:errors]
+
+# If the error threshold has been met, we terminate the script.
+$error_threshold = 10
+$sleep_before_retry = 15
 
 
 def get_registration_num_of_last_scraped_business
@@ -47,6 +53,7 @@ def get_registration_num_of_last_scraped_business
 end
 
 def load_arbk_search_page(registration_num)
+    error_counter = 0
     browser_goto_has_timeout = true
 
     while browser_goto_has_timeout
@@ -55,20 +62,34 @@ def load_arbk_search_page(registration_num)
             $browser.goto 'arbk.rks-gov.net'
             browser_goto_has_timeout = false
 
-        rescue => error 
-            browser_goto_has_timeout = true
+        rescue => error
+            error_counter += 1
 
-            # Display and save error
-            puts error.to_s
-            save_error(registration_num, error.to_s)
+            if error_counter > $error_threshold
+                abort_error_message = "Too many failed attempts to load search page: " + error.to_s
+                puts abort_error_message
+                save_error(registration_num, abort_error_message)
 
-            # Wait 15 seconds before trying again
-            sleep 15
+                # Exit program.
+                abort("I'm givin' it all she's got, Captain! If I push it any farther, the whole thing'll blow!")
+
+            else
+
+                browser_goto_has_timeout = true
+
+                # Display and save error
+                puts error.to_s
+                save_error(registration_num, error.to_s)
+
+                # Wait before trying again
+                sleep $sleep_before_retry
+            end
         end
     end 
 end
 
 def load_page_via_anchor_click(registration_num, anchor)
+    error_counter = 0
     click_has_timeout = true
 
     while click_has_timeout
@@ -78,14 +99,26 @@ def load_page_via_anchor_click(registration_num, anchor)
             click_has_timeout = false
 
         rescue => error 
-            click_has_timeout = true
+            error_counter += 1
 
-            # Display and save error
-            puts error.to_s
-            save_error(registration_num, error.to_s)
+            if error_counter > $error_threshold
+                abort_error_message = "Too many failed attempts to load page via anchor click: " + error.to_s
+                puts abort_error_message
+                save_error(registration_num, abort_error_message)
 
-            # Wait 15 seconds before trying again
-            sleep 15
+                # Exit program.
+                abort("I'm givin' it all she's got, Captain! If I push it any farther, the whole thing'll blow!")
+
+            else
+                click_has_timeout = true
+
+                # Display and save error
+                puts error.to_s
+                save_error(registration_num, error.to_s)
+
+                # Wait before trying again
+                sleep $sleep_before_retry
+            end
         end
     end
 end 
