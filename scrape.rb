@@ -5,27 +5,16 @@ require 'time'
 require 'date'
 require 'mongo'
 require 'nokogiri'
+require 'pathname'
 
 Mongo::Logger.logger.level = ::Logger::FATAL
 
-# Get bussiness registration number range to scrape
-begin
-    $registration_num_start = Integer(ARGV[0]) # 70000000
-    $registration_num_end = Integer(ARGV[1]) # 71500000
-
-rescue => error
-    puts 'Error inputting bussiness registration number range to scrape: using default [70000000, 71500000].'
-    $registration_num_start = 70000000
-    $registration_num_end = 71500000
-end
-
-# Initiate the browser
-$browser = Watir::Browser.new :chrome
-
 # Establish connection to database
 client = Mongo::Client.new([ '127.0.0.1:27017' ], :database => 'arbk')
+
 #$collection_businesses = client[:businesses]
 #$collection_errors = client[:errors]
+
 $collection_businesses = client[:businesses]
 $collection_errors = client[:errors]
 
@@ -33,15 +22,24 @@ $collection_errors = client[:errors]
 $error_threshold = 10
 $sleep_before_retry = 15
 
+'''
+Example commands to execute script.
 
-def get_registration_num_of_last_scraped_business
-    # Get the registrationa number of the last scraped business.
+Scrape from business registration number 70000000 to 71500000:
+> ruby scrape.py -r 70000000 71500000
+
+Scrape based on business registration numbers listed in a file:
+> ruby scrape.py -f biznumz.txt
+'''
+
+def get_registration_num_of_last_scraped_business(num_start, num_end)
+    # Get the registration number of the last scraped business.
     # So that we can start off around where we left off if we previously stopped the scraping script.
     doc = $collection_businesses.find({
                 'formatted.registrationNum' => {
                     '$exists' => true,
-                    '$gte' => $registration_num_start,
-                    '$lte' => $registration_num_end},
+                    '$gte' => num_start,
+                    '$lte' => num_end},
             }).sort({
                 'formatted.registrationNum' => -1
             }).limit(1).first()
@@ -51,6 +49,41 @@ def get_registration_num_of_last_scraped_business
     latest_registration_num
 
 end
+
+begin
+    # Give list of business registrations:
+    if ARGV[0] == '-f' or ARGV[0] == '--file'
+        $registration_num_array = File.readlines(ARGV[1])
+
+    # Define range of businesses registration to scrape:
+    elsif ARGV[0] == '-r' or ARGV[0] == '--range' 
+        $registration_num_start = Integer(ARGV[1]) # 70000000
+        $registration_num_end = Integer(ARGV[2]) # 71500000
+
+        # Get registration num start, i.e. where the scraping will begin.
+        # This is in case we previously strated this range, had to stop, and now are resuming.
+        reg_num_start = get_registration_num_of_last_scraped_business($registration_num_start, $registration_num_end)
+        $registration_num_array = (reg_num_start..$registration_num_end)
+    end
+
+    # Initiate the browser
+    $browser = Watir::Browser.new :chrome
+
+rescue => error
+    puts error
+    puts
+    puts 'Usage Error. Try one of the following options:'
+    puts 
+    puts 'Scrape from business registration number 70000000 to 71500000:'
+    puts '> ruby scrape.py -r 70000000 71500000'
+    puts
+    puts 'Scrape based on business registration numbers listed in a file:'
+    puts '> ruby scrape.py -f biznumz.txt'
+    puts
+    
+    abort('Program terminated.')
+end
+
 
 def load_arbk_search_page(registration_num)
     error_counter = 0
@@ -124,14 +157,12 @@ def load_page_via_anchor_click(registration_num, anchor)
 end 
 
 def scrape()
-    # Get registration num start, i.e. where the scraping will begin.
-    reg_num_start = get_registration_num_of_last_scraped_business
 
     # Load ARBK business registration search page
     load_arbk_search_page(-1)
 
     # Start searching for businesses
-    (reg_num_start..$registration_num_end).each do |biznum|
+    $registration_num_array.each do |biznum|
 
         begin
 
