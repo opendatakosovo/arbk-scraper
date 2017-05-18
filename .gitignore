@@ -1,4 +1,4 @@
-retry.txt
+*.txt
 .DS_Store
 .idea
 *.gem

@@ -3,9 +3,8 @@ require 'FileUtils'
 
 Mongo::Logger.logger.level = ::Logger::FATAL
 
-# Delete file created from last run.
-# This file lists all of the reg nums we should retry.
-FileUtils.rm('retry.txt')
+# name of file listing all the business registration numbers we should recheck.
+error_filename = 'retry.txt'
 
 # Establish connection to database
 client = Mongo::Client.new([ '127.0.0.1:27017' ], :database => 'arbk')
@@ -55,7 +54,7 @@ for error_type in error_types
             })
 
         # Compilre all reg nums we should retry:
-        File.open('retry.txt', 'a') do |f|
+        File.open(error_filename, 'a') do |f|
             f.puts(unrecovered_error_reg_nums)
         end
 

@@ -272,7 +272,7 @@ end
 def save_error(registration_num, error_msg)
     # Save the registration number that triggered the error.
     $collection_errors.insert_one({
-        'registrationNum' => intify(registration_num),
+        'registrationNum' => registration_num.to_i,
         'errorMsg' => error_msg
         })
 end
@@ -324,16 +324,16 @@ def format_data(biz_hash_formatted, parent_key, key, value)
             biz_hash_formatted['type'] = value
 
         elsif key == 'Nr Regjistrimit' and !value.empty?
-            biz_hash_formatted['registrationNum'] = intify(value)
+            biz_hash_formatted['registrationNum'] = value.to_i
 
         elsif key == 'Nr Fiskal' and !value.empty?
-            biz_hash_formatted['fiscalNum'] = intify(value)
+            biz_hash_formatted['fiscalNum'] = value.to_i
 
         elsif key == 'Nr Cerfitikues KTA' and !value.empty?
-            biz_hash_formatted['ktaNum'] = intify(value)
+            biz_hash_formatted['ktaNum'] = value.to_i
 
         elsif key == 'Nr Punëtorëve' and !value.empty?
-            biz_hash_formatted['employeeCount'] = intify(value)
+            biz_hash_formatted['employeeCount'] = value.to_i
 
         elsif key == 'Data e konstituimit' and !value.empty?
             biz_hash_formatted['establishmentDate'] = datefy(value)
@@ -345,7 +345,7 @@ def format_data(biz_hash_formatted, parent_key, key, value)
             biz_hash_formatted['municipality'] = value
         
         elsif key == 'Kapitali' and !value.empty?
-            biz_hash_formatted['capital'] = foatify(value)
+            biz_hash_formatted['capital'] = value.to_f
 
         elsif key == 'Statusi në ATK' and !value.empty?
             biz_hash_formatted['atkStatus'] = value
@@ -361,7 +361,7 @@ def format_data(biz_hash_formatted, parent_key, key, value)
         biz_hash_formatted['authorized'].push(key)
 
     elsif parent_key == 'activities'
-        biz_hash_formatted['activities'].push(intify(key))
+        biz_hash_formatted['activities'].push(key.to_i)
 
     else
         # do nothing
@@ -374,24 +374,6 @@ def datefy(value)
     begin 
         date_array = value.split('.')
         Time.parse(DateTime.new(date_array[0].to_i, date_array[1].to_i, date_array[2].to_i).to_s)
-    rescue ArgumentError
-        value
-    end
-end
-
-def foatify(value)
-    # Cast String to Float type
-    begin
-        Float(value)
-    rescue ArgumentError
-        value
-    end
-end
-
-def intify(value)
-    # Cast String to Integer type
-    begin
-        Integer(value)
     rescue ArgumentError
         value
     end
