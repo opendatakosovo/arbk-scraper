@@ -1,7 +1,7 @@
 require 'mongo'
 
 '''
-    When processing the raw scraped data, the activity codes were converted.
+    When processing the raw scraped data, the activity codes were converted
     from String to Integers.
 
     An inappropriate method was used for this convertion in which activity
