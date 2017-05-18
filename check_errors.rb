@@ -1,6 +1,18 @@
 require 'mongo'
 require 'FileUtils'
 
+'''
+    Sometimes during the scraping process, errors were thrown.
+    These errors were saved in the database, with information on the business
+    registration number with which the error was triggered.
+
+    This script basically goes through all those documented errors and lists
+    their associated business registration numbers in a txt file.
+
+    The txt file can then be loaded in the scraping script in order to re-scrape
+    the concerned data thus making sure that not data was omitted due to errors.
+'''
+
 Mongo::Logger.logger.level = ::Logger::FATAL
 
 # name of file listing all the business registration numbers we should recheck.

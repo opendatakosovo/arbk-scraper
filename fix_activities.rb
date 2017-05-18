@@ -1,5 +1,19 @@
 require 'mongo'
 
+'''
+    When processing the raw scraped data, the activity codes were converted.
+    from String to Integers.
+
+    An inappropriate method was used for this convertion in which activity
+    codes with leading 0s (e.g. "0123") were interpreted as octal numbers
+    rather than decimal. In other words, we did Integer("0123") instead of
+    "0123".to_i which, in this case, gave us 83 instead of 123.
+
+    For all businesses with activities codes that have leading zeros in them,
+    this script will reset the activity codes list in the formatted subdocument
+    to the corrected value.
+'''
+
 # Establish connection to database
 client = Mongo::Client.new([ '127.0.0.1:27017' ], :database => 'arbk')
 $collection_businesses = client[:businesses]

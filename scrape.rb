@@ -7,6 +7,16 @@ require 'mongo'
 require 'nokogiri'
 require 'pathname'
 
+'''
+Example commands to execute script.
+
+Scrape from business registration number 70000000 to 71500000:
+> ruby scrape.py -r 70000000 71500000
+
+Scrape based on business registration numbers listed in a file:
+> ruby scrape.py -f biznumz.txt
+'''
+
 Mongo::Logger.logger.level = ::Logger::FATAL
 
 # Establish connection to database
@@ -21,16 +31,6 @@ $collection_errors = client[:errors]
 # If the error threshold has been met, we terminate the script.
 $error_threshold = 10
 $sleep_before_retry = 15
-
-'''
-Example commands to execute script.
-
-Scrape from business registration number 70000000 to 71500000:
-> ruby scrape.py -r 70000000 71500000
-
-Scrape based on business registration numbers listed in a file:
-> ruby scrape.py -f biznumz.txt
-'''
 
 def get_registration_num_of_last_scraped_business(num_start, num_end)
     # Get the registration number of the last scraped business.
