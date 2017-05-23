@@ -11,10 +11,10 @@ require 'pathname'
 Example commands to execute script.
 
 Scrape from business registration number 70000000 to 71500000:
-> ruby scrape.py -r 70000000 71500000
+> ruby scrape.rb -r 70000000 71500000
 
 Scrape based on business registration numbers listed in a file:
-> ruby scrape.py -f biznumz.txt
+> ruby scrape.rb -f biznumz.txt
 '''
 
 Mongo::Logger.logger.level = ::Logger::FATAL
@@ -75,10 +75,10 @@ rescue => error
     puts 'Usage Error. Try one of the following options:'
     puts 
     puts 'Scrape from business registration number 70000000 to 71500000:'
-    puts '> ruby scrape.py -r 70000000 71500000'
+    puts '> ruby scrape.rb -r 70000000 71500000'
     puts
     puts 'Scrape based on business registration numbers listed in a file:'
-    puts '> ruby scrape.py -f biznumz.txt'
+    puts '> ruby scrape.rb -f biznumz.txt'
     puts
     
     abort('Program terminated.')
@@ -165,15 +165,18 @@ def scrape()
     $registration_num_array.each do |biznum|
 
         begin
+            # UI updates as of '23/05/2017'
+            # MainContent_ctl00_txtNumriBiznesit --> txtNumriBiznesit
+            # MainContent_ctl00_Submit1 --> Submit1
 
             # Search for a business based on registration number
             # Sometimes the set doesn't set the whole value so we make sure we try again if that happens.
-            $browser.text_field(id: 'MainContent_ctl00_txtNumriBiznesit').set ''
-            while $browser.text_field(id: 'MainContent_ctl00_txtNumriBiznesit').value.length != '70000000'.length
-                $browser.text_field(id: 'MainContent_ctl00_txtNumriBiznesit').set biznum
+            $browser.text_field(id: 'txtNumriBiznesit').set ''
+            while $browser.text_field(id: 'txtNumriBiznesit').value.length != '70000000'.length
+                $browser.text_field(id: 'txtNumriBiznesit').set biznum
             end
 
-            $browser.button(id: 'MainContent_ctl00_Submit1').click
+            $browser.button(id: 'Submit1').click
 
             # If there is a result, there will be result table with a single row and a link
             anchor = $browser.a(:xpath => "//table[@class='views-table cols-4']/tbody//td/a")
