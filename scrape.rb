@@ -165,9 +165,9 @@ def scrape()
     $registration_num_array.each do |biznum|
 
         begin
-            # UI updates as of '23/05/2017'
+            # UI updates as of '18/06/2017'
             # MainContent_ctl00_txtNumriBiznesit --> txtNumriBiznesit
-            # MainContent_ctl00_Submit1 --> Submit1
+            # MainContent_ctl00_Submit1 --> class: kerko
 
             # Search for a business based on registration number
             # Sometimes the set doesn't set the whole value so we make sure we try again if that happens.
@@ -176,7 +176,7 @@ def scrape()
                 $browser.text_field(id: 'txtNumriBiznesit').set biznum
             end
 
-            $browser.button(id: 'Submit1').click
+            $browser.button(class: 'kerko').click
 
             # If there is a result, there will be result table with a single row and a link
             anchor = $browser.a(:xpath => "//table[@class='views-table cols-4']/tbody//td/a")
