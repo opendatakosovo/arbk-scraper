@@ -23,7 +23,7 @@ client = Mongo::Client.new([ '127.0.0.1:27017' ], :database => 'arbk')
 $collection_businesses = client[:businesses]
 $collection_errors = client[:errors]
 
-error_types_to_skip = ['browser window was closed']
+error_id_substrings_to_skip = ['browser window was closed','code=404']
 
 
 all_error_reg_nums = $collection_errors.distinct('registrationNum')
@@ -37,7 +37,7 @@ error_types = $collection_errors.aggregate([{
 
 # Display summary/stats of error types.
 for error_type in error_types
-    if not error_types_to_skip.include?(error_type['_id'])
+    if not (error_type['_id'].include?(error_id_substrings_to_skip[0]) or error_type['_id'].include?(error_id_substrings_to_skip[1]))
         puts
         puts
         puts 'Checking for following error:'
