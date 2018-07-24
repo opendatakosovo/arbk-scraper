@@ -12,6 +12,7 @@ Example commands to execute script.
 
 Scrape from business registration number 70000000 to 71500000:
 > ruby scrape.rb -r 70000000 71500000
+> ruby scrape.rb -r 70451260 71500000
 
 Scrape based on business registration numbers listed in a file:
 > ruby scrape.rb -f biznumz.txt
@@ -29,8 +30,8 @@ $collection_businesses = client[:businesses]
 $collection_errors = client[:errors]
 
 # If the error threshold has been met, we terminate the script.
-$error_threshold = 10
-$sleep_before_retry = 15
+$error_threshold = 5
+$sleep_before_retry = 5
 
 def get_registration_num_of_last_scraped_business(num_start, num_end)
     # Get the registration number of the last scraped business.
@@ -56,7 +57,7 @@ begin
         $registration_num_array = File.readlines(ARGV[1])
 
     # Define range of businesses registration to scrape:
-    elsif ARGV[0] == '-r' or ARGV[0] == '--range' 
+    elsif ARGV[0] == '-r' or ARGV[0] == '--range'
         $registration_num_start = Integer(ARGV[1]) # 70000000
         $registration_num_end = Integer(ARGV[2]) # 71500000
 
@@ -73,14 +74,14 @@ rescue => error
     puts error
     puts
     puts 'Usage Error. Try one of the following options:'
-    puts 
+    puts
     puts 'Scrape from business registration number 70000000 to 71500000:'
     puts '> ruby scrape.rb -r 70000000 71500000'
     puts
     puts 'Scrape based on business registration numbers listed in a file:'
     puts '> ruby scrape.rb -f biznumz.txt'
     puts
-    
+
     abort('Program terminated.')
 end
 
@@ -118,7 +119,7 @@ def load_arbk_search_page(registration_num)
                 sleep $sleep_before_retry
             end
         end
-    end 
+    end
 end
 
 def load_page_via_anchor_click(registration_num, anchor)
@@ -131,7 +132,7 @@ def load_page_via_anchor_click(registration_num, anchor)
             anchor.click
             click_has_timeout = false
 
-        rescue => error 
+        rescue => error
             error_counter += 1
 
             if error_counter > $error_threshold
@@ -140,21 +141,24 @@ def load_page_via_anchor_click(registration_num, anchor)
                 save_error(registration_num, abort_error_message)
 
                 # Exit program.
-                abort("I'm givin' it all she's got, Captain! If I push it any farther, the whole thing'll blow!")
+                load_page_via_anchor_click(registration_num, anchor)
+                # abort("I'm givin' it all she's got, Captain! If I push it any farther, the whole thing'll blow!")
 
             else
                 click_has_timeout = true
 
                 # Display and save error
-                puts error.to_s
+                puts "Loading page via anchor click: " + error.to_s
                 save_error(registration_num, error.to_s)
+                # Start
+                load_page_via_anchor_click(registration_num, anchor)
 
                 # Wait before trying again
                 sleep $sleep_before_retry
             end
         end
     end
-end 
+end
 
 def scrape()
 
@@ -165,9 +169,9 @@ def scrape()
     $registration_num_array.each do |biznum|
 
         begin
-            # UI updates as of '18/06/2017'
-            # MainContent_ctl00_txtNumriBiznesit --> txtNumriBiznesit
-            # MainContent_ctl00_Submit1 --> class: kerko
+            # UI updates as about '24/07/2018'
+            # class: kerko --> id: Submit1
+            # Loading Feature when searching
 
             # Search for a business based on registration number
             # Sometimes the set doesn't set the whole value so we make sure we try again if that happens.
@@ -176,88 +180,108 @@ def scrape()
                 $browser.text_field(id: 'txtNumriBiznesit').set biznum
             end
 
-            $browser.button(class: 'kerko').click
-
-            # If there is a result, there will be result table with a single row and a link
-            anchor = $browser.a(:xpath => "//table[@class='views-table cols-4']/tbody//td/a")
-
-            # If the lin does exist, the load the business page
-            if anchor.exists?
-
-                # Prepare the business data container (hashmap)
-                biz_hash = {
-                    'raw' => {
-                        'info' => [],
-                        'authorized' => [],
-                        'owners' => [],
-                        'activities' => []
-                    },
-                    'formatted' => {
-                        'owners' => [],
-                        'authorized' => [],
-                        'activities' => []
-                    } 
-                }
-
-                # Get some data already
-                biz_name = CGI.unescapeHTML(anchor.text.strip)
-                biz_status = $browser.tds(:xpath => "//table[@class='views-table cols-4']/tbody//td")[5].text
-                biz_arbk_url = anchor.href
-
-                # Indicate in console that we found a business
-                puts 'Business found: ' + biz_name + ' (' + biz_status + '): ' + biz_arbk_url
-
-                # Click on the link to load busines info page on arbk's website.
-                load_page_via_anchor_click(biznum, anchor)
-
-                # Navigate all the table, row by row, and extract the data all while building a json document that will be stored in the databse.
-                table_section_spans = $browser.spans(:xpath => "//div[@id='MainContent_ctl00_pnlBizneset']//table[@class='views-table cols-4']//thead//span")
-
-                table_section_spans.each do |table_section_span|
-                    section_title = table_section_span.text.strip
-
-                    if CGI.unescapeHTML(section_title) == biz_name
-                        # Business info
-                        biz_hash['raw']['info'].push({
-                            'key' => 'Emri',
-                            'value' => biz_name
-                        })
-
-                        rows = table_section_span.parent.parent.parent.parent.parent.parent.tbody.trs
-                        fetch_row_data(biznum, rows, biz_hash, 'info')
-
-                    elsif section_title == 'Personat e Autorizuar'
-                        # Authorized persons.
-                        rows = table_section_span.parent.parent.parent.parent.tbody.trs
-                        fetch_row_data(biznum, rows, biz_hash, 'authorized')
-
-                    elsif section_title == 'Pronarë'
-                        # Owners
-                        rows = table_section_span.parent.parent.parent.parent.tbody.trs
-                        fetch_row_data(biznum, rows, biz_hash, 'owners')
-
-                    elsif section_title == 'Aktivitet/et'
-                        # Activities
-                        rows = table_section_span.parent.parent.parent.parent.tbody.trs
-                        fetch_row_data(biznum, rows, biz_hash, 'activities')
-
-                    else
-                        # do nothing
-                    end 
-                end
-
-                # We now have a business registration document.
-                # let's add some extra formatted data in order to simplify queries.
-                biz_hash['formatted']['timestamp'] = Time.now.getutc
-                biz_hash['formatted']['name'] = biz_name
-                biz_hash['formatted']['status'] = biz_status
-                biz_hash['formatted']['arbkUrl'] = biz_arbk_url
-
-                save_business_data(biz_hash)
-
-                # Return to the search page for the next search.
-                load_arbk_search_page(biznum)
+            if $browser.div(:id => 'UpdateProgress3').exists?
+               $browser.execute_script("document.getElementById('UpdateProgress3').outerHTML = null");
             end
+
+            $browser.div(:id => 'UpdateProgress3').wait_while_present(timeout: 3)
+            if $browser.button(:id => 'Submit1').exists? and $browser.text_field(id: 'txtNumriBiznesit').exists?
+               puts "Body Loaded " + biznum.to_s
+               $browser.button(id: 'Submit1').click
+
+               # If there is a result, there will be result table with a single row and a link
+               anchor = $browser.a(:xpath => "//table[@class='views-table cols-4']/tbody//td/a")
+
+               # If the link does exist, the load the business page
+               sleep 0.3
+               if anchor.exists?
+
+                   # Prepare the business data container (hashmap)
+                   biz_hash = {
+                       'raw' => {
+                           'info' => [],
+                           'authorized' => [],
+                           'owners' => [],
+                           'activities' => []
+                       },
+                       'formatted' => {
+                           'owners' => [],
+                           'authorized' => [],
+                           'activities' => []
+                       }
+                   }
+
+                   # Get some data already
+                   biz_name = CGI.unescapeHTML(anchor.text.strip)
+                   biz_status = $browser.tds(:xpath => "//table[@class='views-table cols-4']/tbody//td")[5].text
+                   biz_arbk_url = anchor.href
+
+                   # Indicate in console that we found a business
+                   if biz_name != 'Barnatore Bujqësore " Xeni " SH.P.K'
+                      puts 'Business found: ' + biz_name + ' (' + biz_status + '): ' + biz_arbk_url
+
+                      # Click on the link to load busines info page on arbk's website.
+                      load_page_via_anchor_click(biznum, anchor)
+
+                      # Navigate all the table, row by row, and extract the data all while building a json document that will be stored in the databse.
+                      table_section_spans = $browser.spans(:xpath => "//div[@id='MainContent_ctl00_pnlBizneset']//table[@class='views-table cols-4']//thead//span")
+
+                      table_section_spans.each do |table_section_span|
+                          section_title = table_section_span.text.strip
+
+                          if CGI.unescapeHTML(section_title) == biz_name
+                              # Business info
+                              biz_hash['raw']['info'].push({
+                                  'key' => 'Emri',
+                                  'value' => biz_name
+                              })
+
+                              rows = table_section_span.parent.parent.parent.parent.parent.parent.tbody.trs
+                              fetch_row_data(biznum, rows, biz_hash, 'info')
+
+                          elsif section_title == 'Personat e Autorizuar'
+                              # Authorized persons.
+                              rows = table_section_span.parent.parent.parent.parent.tbody.trs
+                              fetch_row_data(biznum, rows, biz_hash, 'authorized')
+
+                          elsif section_title == 'Pronarë'
+                              # Owners
+                              rows = table_section_span.parent.parent.parent.parent.tbody.trs
+                              fetch_row_data(biznum, rows, biz_hash, 'owners')
+
+                          elsif section_title == 'Aktivitet/et'
+                              # Activities
+                              rows = table_section_span.parent.parent.parent.parent.tbody.trs
+                              fetch_row_data(biznum, rows, biz_hash, 'activities')
+
+                          else
+                              # do nothing
+                          end
+                       end
+                   else
+                     load_arbk_search_page(biznum)
+                   end
+
+                   # We now have a business registration document.
+                   # let's add some extra formatted data in order to simplify queries.
+                   biz_hash['formatted']['timestamp'] = Time.now.getutc
+                   biz_hash['formatted']['name'] = biz_name
+                   biz_hash['formatted']['status'] = biz_status
+                   biz_hash['formatted']['arbkUrl'] = biz_arbk_url
+
+                   save_business_data(biz_hash)
+
+                   # Return to the search page for the next search.
+                   load_arbk_search_page(biznum)
+               else
+                  puts "Not found!"
+               end
+
+            else
+              # Do other stuff
+              puts "Body not loaded yet!"
+            end
+
         rescue => error
 
             # Display and save error
@@ -346,7 +370,7 @@ def format_data(biz_hash_formatted, parent_key, key, value)
 
         elsif key == 'Komuna' and !value.empty?
             biz_hash_formatted['municipality'] = value
-        
+
         elsif key == 'Kapitali' and !value.empty?
             biz_hash_formatted['capital'] = value.to_f
 
@@ -374,7 +398,7 @@ end
 
 def datefy(value)
     # Cast String to Date type
-    begin 
+    begin
         date_array = value.split('.')
         Time.parse(DateTime.new(date_array[0].to_i, date_array[1].to_i, date_array[2].to_i).to_s)
     rescue ArgumentError
